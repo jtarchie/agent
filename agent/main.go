@@ -2,19 +2,24 @@ package main
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/alecthomas/kong"
 	"github.com/go-enry/go-enry/v2"
 	"github.com/jtarchie/outrageous/agent"
 	"github.com/jtarchie/outrageous/client"
 )
+
+//go:embed prompts
+var promptsFS embed.FS
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
@@ -35,25 +40,24 @@ type CLI struct {
 	ExecutingModel string   `help:"Model to use for the executing agent." default:"qwen3:8b"`
 }
 
-//go:embed prompts/planning.md
-var planningPrompt string
+// loadPromptTemplate loads a prompt from the embedded filesystem and parses it as a template
+func loadPromptTemplate(name string) (*template.Template, error) {
+	content, err := promptsFS.ReadFile(filepath.Join("prompts", name))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read prompt %s: %w", name, err)
+	}
 
-//go:embed prompts/execute.md
-var executePrompt string
+	return template.New(name).Funcs(sprig.FuncMap()).Parse(string(content))
+}
 
 func (cli *CLI) Run() error {
-	planningAgent := agent.New(
-		"Planning Agent",
-		planningPrompt,
-		agent.WithClient(client.NewOllamaClient(cli.PlanningModel)),
-	)
-
 	pwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	message := "User Messages:\n" + cli.Message + "\n\nFiles: \n"
+	// Prepare file information for templates
+	fileInfo := make([]map[string]interface{}, 0, len(cli.Filenames))
 	for _, filename := range cli.Filenames {
 		contents, err := os.ReadFile(filename)
 		if err != nil {
@@ -70,17 +74,51 @@ func (cli *CLI) Run() error {
 		}
 
 		relativeFilename := strings.TrimPrefix(absFilename, pwd+"/")
-
 		lang := enry.GetLanguage(filepath.Base(relativeFilename), contents)
-		message += fmt.Sprintf("- %s: language %q, size %d\n", relativeFilename, lang, len(contents))
+
+		fileInfo = append(fileInfo, map[string]interface{}{
+			"filename": relativeFilename,
+			"language": lang,
+			"size":     len(contents),
+		})
 	}
+
+	// Load and execute planning prompt template
+	planningTmpl, err := loadPromptTemplate("planning.md")
+	if err != nil {
+		return fmt.Errorf("failed to load planning prompt: %w", err)
+	}
+
+	var planningPromptBuf strings.Builder
+	err = planningTmpl.Execute(&planningPromptBuf, map[string]interface{}{
+		"Message": cli.Message,
+		"Files":   fileInfo,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to execute planning prompt template: %w", err)
+	}
+
+	planningAgent := agent.New(
+		"Planning Agent",
+		planningPromptBuf.String(),
+		agent.WithClient(client.NewOllamaClient(cli.PlanningModel)),
+	)
+
+	// Create user message for planning agent
+	filesList := "Files: \n"
+	for _, file := range fileInfo {
+		filesList += fmt.Sprintf("- %s: language %q, size %d\n",
+			file["filename"], file["language"], file["size"])
+	}
+
+	userMessage := "User Messages:\n" + cli.Message + "\n\n" + filesList
 
 	response, err := planningAgent.Run(
 		context.Background(),
 		agent.Messages{
 			agent.Message{
 				Role:    "user",
-				Content: message,
+				Content: userMessage,
 			},
 		},
 	)
@@ -99,9 +137,24 @@ func (cli *CLI) Run() error {
 
 	slog.Debug("planning.agent", "plan", plan)
 
+	// Load and execute execution prompt template
+	executeTmpl, err := loadPromptTemplate("execute.md")
+	if err != nil {
+		return fmt.Errorf("failed to load execute prompt: %w", err)
+	}
+
+	var executePromptBuf strings.Builder
+	err = executeTmpl.Execute(&executePromptBuf, map[string]interface{}{
+		"Plan":  plan,
+		"Files": fileInfo,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to execute execute prompt template: %w", err)
+	}
+
 	executingAgent := agent.New(
 		"Executing Agent",
-		executePrompt,
+		executePromptBuf.String(),
 		agent.WithClient(client.NewOllamaClient(cli.ExecutingModel)),
 	)
 
