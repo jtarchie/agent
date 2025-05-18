@@ -38,6 +38,33 @@ type CLI struct {
 	Message        string   `help:"Message to send to the planning agent." required:""`
 	PlanningModel  string   `help:"Model to use for the planning agent." default:"phi4-mini-reasoning:latest"`
 	ExecutingModel string   `help:"Model to use for the executing agent." default:"qwen3:8b"`
+	Tools          []string `help:"List of tools to allow the executing agent to use. Default is all." optional:"" enum:"ReadFile,RunInTerminal,InsertEditIntoFile"`
+}
+
+// Tool represents an available tool for the executing agent
+type Tool struct {
+	Name           string
+	Description    string
+	Implementation agent.Caller
+}
+
+// availableTools defines all possible tools with their descriptions and implementations
+var availableTools = []Tool{
+	{
+		Name:           "ReadFile",
+		Description:    "Read specific lines from a file in the codebase. Use this tool when you know the file path and want to inspect only a section of the file to avoid loading large files in full. This is useful for reviewing implementations, extracting function or class definitions, or confirming assumptions about code structure.",
+		Implementation: ReadFile{},
+	},
+	{
+		Name:           "RunInTerminal",
+		Description:    "Run a command in the terminal. Use this tool when you need to execute a command that is not directly related to the codebase, such as running tests, building the project, or executing scripts.",
+		Implementation: RunInTerminal{},
+	},
+	{
+		Name:           "InsertEditIntoFile",
+		Description:    "Insert or edit a file in the codebase. Use this tool when you need to apply changes to a file based on the provided unified diff. This is useful for making code modifications, applying patches, or updating configurations.",
+		Implementation: InsertEditIntoFile{},
+	},
 }
 
 // loadPromptTemplate loads a prompt from the embedded filesystem and parses it as a template
@@ -143,10 +170,40 @@ func (cli *CLI) Run() error {
 		return fmt.Errorf("failed to load execute prompt: %w", err)
 	}
 
+	// Determine which tools to include
+	toolsToInclude := make([]Tool, 0)
+	if len(cli.Tools) == 0 {
+		// If no tools specified, include all
+		toolsToInclude = availableTools
+	} else {
+		// Otherwise, include only the specified tools
+		toolNames := make(map[string]bool)
+		for _, name := range cli.Tools {
+			toolNames[name] = true
+		}
+
+		for _, tool := range availableTools {
+			if toolNames[tool.Name] {
+				toolsToInclude = append(toolsToInclude, tool)
+			}
+		}
+	}
+
+	// Create a list of tool descriptions to pass to the execute template
+	toolDescriptions := make([]map[string]string, 0, len(toolsToInclude))
+	for _, tool := range toolsToInclude {
+		toolDescriptions = append(toolDescriptions, map[string]string{
+			"name":        tool.Name,
+			"description": tool.Description,
+		})
+	}
+
+	// Update the execute prompt template parameters
 	var executePromptBuf strings.Builder
 	err = executeTmpl.Execute(&executePromptBuf, map[string]interface{}{
 		"Plan":  plan,
 		"Files": fileInfo,
+		"Tools": toolDescriptions,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute execute prompt template: %w", err)
@@ -158,20 +215,10 @@ func (cli *CLI) Run() error {
 		agent.WithClient(client.NewOllamaClient(cli.ExecutingModel)),
 	)
 
-	executingAgent.Tools.Add(
-		agent.MustWrapStruct(
-			"Read specific lines from a file in the codebase. Use this tool when you know the file path and want to inspect only a section of the file to avoid loading large files in full. This is useful for reviewing implementations, extracting function or class definitions, or confirming assumptions about code structure.",
-			ReadFile{},
-		),
-		agent.MustWrapStruct(
-			"Run a command in the terminal. Use this tool when you need to execute a command that is not directly related to the codebase, such as running tests, building the project, or executing scripts.",
-			RunInTerminal{},
-		),
-		agent.MustWrapStruct(
-			"Insert or edit a file in the codebase. Use this tool when you need to apply changes to a file based on the provided unified diff. This is useful for making code modifications, applying patches, or updating configurations.",
-			InsertEditIntoFile{},
-		),
-	)
+	// Add the selected tools to the executing agent
+	for _, tool := range toolsToInclude {
+		executingAgent.Tools.Add(agent.MustWrapStruct(tool.Description, tool.Implementation))
+	}
 
 	_, err = executingAgent.Run(
 		context.Background(),
