@@ -29,8 +29,8 @@ github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUq
 github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
 github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI=
 github.com/huandu/xstrings v1.5.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
-github.com/jtarchie/outrageous v0.0.0-20250517015705-0505152de9a6 h1:HG/vKdy70RnIohb3Vvm5aP2HdFcxWSBBkGS/if+Z2VA=
-github.com/jtarchie/outrageous v0.0.0-20250517015705-0505152de9a6/go.mod h1:Sgh//prp6ih0i8qfmvt7FiE2OpClFR55AnvMKFV9T4s=
+github.com/jtarchie/outrageous v0.0.0-20250519030529-79d2e3af2f39 h1:G3p8lIp9nHt89FKjUWU8CaG4Q2ttynpfqt/JAYEvAxw=
+github.com/jtarchie/outrageous v0.0.0-20250519030529-79d2e3af2f39/go.mod h1:Sgh//prp6ih0i8qfmvt7FiE2OpClFR55AnvMKFV9T4s=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
