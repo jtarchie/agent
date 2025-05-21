@@ -71,7 +71,7 @@ Avoid unnecessary tool calls — but never skip what's required.
 <tools>
 Available Tools:
 {{- range .Tools }}
-- {{ .name }}: {{ .description }}
+- {{ .Name }}: {{ .Description }}
 {{- end }}
 </tools>
 

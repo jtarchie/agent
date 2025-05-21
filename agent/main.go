@@ -14,6 +14,7 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/alecthomas/kong"
 	"github.com/go-enry/go-enry/v2"
+	"github.com/jtarchie/agent/agent/tools"
 	"github.com/jtarchie/outrageous/agent"
 	"github.com/jtarchie/outrageous/client"
 )
@@ -200,17 +201,14 @@ func runExecutionPhase(cli *CLI, plan string, fileInfos []map[string]interface{}
 	}
 
 	// Select tools to include
-	toolsToInclude := selectTools(cli.Tools)
-
-	// Create tool descriptions
-	toolDescriptions := createToolDescriptions(toolsToInclude)
+	toolsToInclude := tools.Select(cli.Tools)
 
 	// Execute template for execution agent
 	var executePromptBuf strings.Builder
 	err = executeTmpl.Execute(&executePromptBuf, map[string]interface{}{
 		"Plan":  plan,
 		"Files": fileInfos,
-		"Tools": toolDescriptions,
+		"Tools": toolsToInclude,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute execute prompt template: %w", err)
@@ -237,7 +235,7 @@ func runExecutionPhase(cli *CLI, plan string, fileInfos []map[string]interface{}
 }
 
 // createExecutingAgent creates and configures the executing agent
-func createExecutingAgent(prompt string, modelName string, tools []Tool) *agent.Agent {
+func createExecutingAgent(prompt string, modelName string, tools []tools.Tool) *agent.Agent {
 	executingAgent := agent.New(
 		"Executing Agent",
 		prompt,
