@@ -12,14 +12,27 @@ type RunInTerminal struct {
 }
 
 func (r RunInTerminal) Call(ctx context.Context) (any, error) {
-	out, err := exec.CommandContext(ctx, r.Command[0], r.Command[1:]...).CombinedOutput()
+	var (
+		out []byte
+		err error
+	)
+
+	if len(r.Command) == 0 {
+		return nil, fmt.Errorf("command is required")
+	}
+
+	if len(r.Command) == 1 {
+		out, err = exec.CommandContext(ctx, r.Command[0]).CombinedOutput()
+	} else {
+		out, err = exec.CommandContext(ctx, r.Command[0], r.Command[1:]...).CombinedOutput()
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error running command: %w\nOutput: %s", err, out)
 	}
 
 	return map[string]any{
-		"status":      "completed",
-		"output":      string(out),
-		"explanation": r.Explanation,
+		"status": "completed",
+		"output": string(out),
 	}, nil
 }

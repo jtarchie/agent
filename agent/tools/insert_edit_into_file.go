@@ -19,8 +19,6 @@ func (i InsertEditIntoFile) Call(ctx context.Context) (any, error) {
 	}
 
 	return map[string]any{
-		"status":      "completed",
-		"explanation": i.Explanation,
-		"filePath":    i.FilePath,
+		"status": "completed",
 	}, nil
 }
