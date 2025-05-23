@@ -40,3 +40,14 @@ Assume:
 - [Assumption 1]
 - [Assumption 2] ...
 ```
+
+{{if .CustomPrompt}}
+
+**Custom Planning Instructions:**
+
+The following are custom planning instructions provided by the user. Please
+follow them to the best of your ability, please compromise where it makes sense.
+
+{{.CustomPrompt}}
+
+{{end}}

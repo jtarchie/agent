@@ -79,13 +79,13 @@ func (cli *CLI) Run() error {
 	}
 
 	// Create and run the planning agent
-	plan, err := runPlanningPhase(cli, fileInfos)
+	plan, err := runPlanningPhase(cli, pwd, fileInfos)
 	if err != nil {
 		return err
 	}
 
 	// Create and run the executing agent
-	return runExecutionPhase(cli, plan, fileInfos)
+	return runExecutionPhase(cli, plan, pwd, fileInfos)
 }
 
 // processFiles reads and analyzes the files provided as CLI arguments
@@ -125,18 +125,28 @@ func processFiles(filenames []string, pwd string) ([]map[string]interface{}, err
 }
 
 // runPlanningPhase sets up and executes the planning agent
-func runPlanningPhase(cli *CLI, fileInfos []map[string]interface{}) (string, error) {
+func runPlanningPhase(cli *CLI, pwd string, fileInfos []map[string]interface{}) (string, error) {
 	// Load planning prompt template
 	planningTmpl, err := loadPromptTemplate("planning.md")
 	if err != nil {
 		return "", fmt.Errorf("failed to load planning prompt: %w", err)
 	}
 
+	var customPrompt []byte
+	customPromptPath := filepath.Join(pwd, ".prompts", "planning.md")
+	if _, err := os.Stat(customPromptPath); err == nil {
+		customPrompt, err = os.ReadFile(customPromptPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read custom planning prompt: %w", err)
+		}
+	}
+
 	// Execute planning template
 	var planningPromptBuf strings.Builder
 	err = planningTmpl.Execute(&planningPromptBuf, map[string]interface{}{
-		"Message": cli.Message,
-		"Files":   fileInfos,
+		"Message":      cli.Message,
+		"Files":        fileInfos,
+		"CustomPrompt": string(customPrompt),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to execute planning prompt template: %w", err)
@@ -204,11 +214,20 @@ func extractAndCleanPlanFromResponse(response *agent.Response) string {
 }
 
 // runExecutionPhase sets up and executes the execution agent
-func runExecutionPhase(cli *CLI, plan string, fileInfos []map[string]interface{}) error {
+func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string]interface{}) error {
 	// Load execution prompt template
 	executeTmpl, err := loadPromptTemplate("execute.md")
 	if err != nil {
 		return fmt.Errorf("failed to load execute prompt: %w", err)
+	}
+
+	var customPrompt []byte
+	customPromptPath := filepath.Join(pwd, ".prompts", "execute.md")
+	if _, err := os.Stat(customPromptPath); err == nil {
+		customPrompt, err = os.ReadFile(customPromptPath)
+		if err != nil {
+			return fmt.Errorf("failed to read custom execute prompt: %w", err)
+		}
 	}
 
 	// Select tools to include
@@ -217,9 +236,10 @@ func runExecutionPhase(cli *CLI, plan string, fileInfos []map[string]interface{}
 	// Execute template for execution agent
 	var executePromptBuf strings.Builder
 	err = executeTmpl.Execute(&executePromptBuf, map[string]interface{}{
-		"Plan":  plan,
-		"Files": fileInfos,
-		"Tools": toolsToInclude,
+		"Plan":         plan,
+		"Files":        fileInfos,
+		"Tools":        toolsToInclude,
+		"CustomPrompt": string(customPrompt),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute execute prompt template: %w", err)
