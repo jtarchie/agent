@@ -6,3 +6,4 @@ tasks:
       - deno fmt .
       - gofmt -w .
       - golangci-lint run --fix --timeout "10m"
+      - go test ./... -v
