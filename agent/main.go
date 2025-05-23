@@ -266,6 +266,9 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 	// Select tools to include
 	toolsToInclude := tools.Select(cli.Tools)
 
+	// Check if we're in batch mode with a single file
+	isBatchSingleFile := cli.Batch && len(fileInfos) == 1
+
 	// Execute template for execution agent
 	var executePromptBuf strings.Builder
 	err = executeTmpl.Execute(&executePromptBuf, map[string]interface{}{
@@ -273,6 +276,8 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 		"Files":        fileInfos,
 		"Tools":        toolsToInclude,
 		"CustomPrompt": string(customPrompt),
+		"BatchMode":    isBatchSingleFile,
+		"CurrentFile":  fileInfos[0]["filename"],
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute execute prompt template: %w", err)
