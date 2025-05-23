@@ -201,13 +201,13 @@ func runPlanningPhase(cli *CLI, pwd string, fileInfos []map[string]interface{}) 
 
 // runBatchExecution processes each file individually in execution phase
 func runBatchExecution(cli *CLI, plan string, pwd string, allFileInfos []map[string]interface{}) error {
-	slog.Info("running in batch execution mode, processing files one at a time")
+	slog.Info("batch.start", "plan", plan)
 
 	for i, fileInfo := range allFileInfos {
 		singleFileInfo := []map[string]interface{}{fileInfo}
 		fileName := fileInfo["filename"].(string)
 
-		slog.Info("executing plan for file in batch mode", "file", fileName, "index", i+1, "total", len(allFileInfos))
+		slog.Info("batch.iter", "file", fileName, "index", i+1, "total", len(allFileInfos))
 
 		// Execute plan for single file
 		err := runExecutionPhase(cli, plan, pwd, singleFileInfo)
@@ -319,6 +319,8 @@ func createExecutingAgent(cli *CLI, prompt string, tools []tools.Tool) *agent.Ag
 	for _, tool := range tools {
 		executingAgent.Tools.Add(agent.MustWrapStruct(tool.Description, tool.Implementation))
 	}
+
+	slog.Debug("executing.agent", "prompt", prompt)
 
 	return executingAgent
 }
