@@ -38,6 +38,26 @@ For each planning step:
 - Connect investigation findings to the user's goal
   </planningStrategy>
 
+{{if .BatchMode}}
+<batchMode>
+
+**Important: This plan will be executed in batch mode.**
+
+In batch mode:
+
+- Your plan will be applied to each file individually
+- Each file will be processed in isolation
+- The execution agent will only have access to one file at a time
+
+Therefore:
+
+- Design steps that work when applied to a single file
+- For multi-file operations, include checks to determine if the current file
+  needs modification
+- Focus on creating a plan that can work independently on each file
+- Include clear decision criteria for determining whether to modify a file
+  </batchMode> {{end}}
+
 <inputFormat>
 You will receive:
 - **Files:** - file names / brief summaries

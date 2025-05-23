@@ -79,13 +79,18 @@ func (cli *CLI) Run() error {
 		return err
 	}
 
-	// Create and run the planning agent
+	// Create and run the planning agent (once for all files)
 	plan, err := runPlanningPhase(cli, pwd, fileInfos)
 	if err != nil {
 		return err
 	}
 
-	// Create and run the executing agent
+	// In batch mode, execute plan for each file separately
+	if cli.Batch {
+		return runBatchExecution(cli, plan, pwd, fileInfos)
+	}
+
+	// Create and run the executing agent normally (all files at once)
 	return runExecutionPhase(cli, plan, pwd, fileInfos)
 }
 
@@ -148,6 +153,7 @@ func runPlanningPhase(cli *CLI, pwd string, fileInfos []map[string]interface{}) 
 		"Message":      cli.Message,
 		"Files":        fileInfos,
 		"CustomPrompt": string(customPrompt),
+		"BatchMode":    cli.Batch, // Pass batch mode flag to planning template
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to execute planning prompt template: %w", err)
@@ -166,6 +172,9 @@ func runPlanningPhase(cli *CLI, pwd string, fileInfos []map[string]interface{}) 
 
 	// Create user message for planning agent
 	userMessage := createPlanningUserMessage(cli.Message, fileInfos)
+	if cli.Batch {
+		userMessage += "\n\nNote: Your plan will be executed in batch mode, processing each file individually."
+	}
 
 	// Run planning agent
 	response, err := planningAgent.Run(
@@ -185,9 +194,31 @@ func runPlanningPhase(cli *CLI, pwd string, fileInfos []map[string]interface{}) 
 	plan := extractAndCleanPlanFromResponse(response)
 
 	// Log the plan
-	slog.Debug("planning.agent", "plan", plan)
+	slog.Debug("planning.agent", "plan", plan, "batch_mode", cli.Batch)
 
 	return plan, nil
+}
+
+// runBatchExecution processes each file individually in execution phase
+func runBatchExecution(cli *CLI, plan string, pwd string, allFileInfos []map[string]interface{}) error {
+	slog.Info("running in batch execution mode, processing files one at a time")
+
+	for i, fileInfo := range allFileInfos {
+		singleFileInfo := []map[string]interface{}{fileInfo}
+		fileName := fileInfo["filename"].(string)
+
+		slog.Info("executing plan for file in batch mode", "file", fileName, "index", i+1, "total", len(allFileInfos))
+
+		// Execute plan for single file
+		err := runExecutionPhase(cli, plan, pwd, singleFileInfo)
+		if err != nil {
+			return fmt.Errorf("execution failed for file %s: %w", fileName, err)
+		}
+
+		slog.Info("completed processing file in batch mode", "file", fileName)
+	}
+
+	return nil
 }
 
 // createPlanningUserMessage creates the user message for the planning agent
@@ -198,6 +229,7 @@ func createPlanningUserMessage(message string, fileInfos []map[string]interface{
 			file["filename"], file["language"], file["size"])
 	}
 
+	// Add batch mode context if needed
 	return "User Messages:\n" + message + "\n\n" + filesList
 }
 
