@@ -43,11 +43,18 @@ func setupLogging() {
 
 // CLI defines the command-line interface structure
 type CLI struct {
-	Filenames      []string `arg:"" optional:"" type:"existingfile" help:"List of filenames to process."`
-	Message        string   `help:"Message to send to the planning agent." required:""`
-	PlanningModel  string   `help:"Model to use for the planning agent." default:"phi4-mini-reasoning:latest"`
-	ExecutingModel string   `help:"Model to use for the executing agent." default:"qwen3:8b"`
-	Tools          []string `help:"List of tools to allow the executing agent to use. Default is all." optional:"" enum:"ReadFile,RunInTerminal,InsertEditIntoFile"`
+	Filenames []string `arg:"" optional:"" type:"existingfile" help:"List of filenames to process."`
+	Message   string   `help:"Message to send to the planning agent." required:""`
+
+	Tools []string `help:"List of tools to allow the executing agent to use. Default is all." optional:"" enum:"ReadFile,RunInTerminal,InsertEditIntoFile"`
+
+	PlanningApiToken    string `help:"API token for OpenAI compatible endpoint"`
+	PlanningApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1"`
+	PlanningModel       string `help:"Model to use for the planning agent." default:"phi4-mini-reasoning:latest"`
+
+	ExecutingApiToken    string `help:"API token for OpenAI compatible endpoint"`
+	ExecutingApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1"`
+	ExecutingModel       string `help:"Model to use for the executing agent." default:"qwen3:8b"`
 }
 
 // FileInfo represents information about a file in the codebase
@@ -139,7 +146,11 @@ func runPlanningPhase(cli *CLI, fileInfos []map[string]interface{}) (string, err
 	planningAgent := agent.New(
 		"Planning Agent",
 		planningPromptBuf.String(),
-		agent.WithClient(client.NewOllamaClient(cli.PlanningModel)),
+		agent.WithClient(client.New(
+			cli.PlanningApiEndpoint,
+			cli.PlanningApiToken,
+			cli.PlanningModel,
+		)),
 	)
 
 	// Create user message for planning agent
@@ -215,7 +226,7 @@ func runExecutionPhase(cli *CLI, plan string, fileInfos []map[string]interface{}
 	}
 
 	// Create executing agent
-	executingAgent := createExecutingAgent(executePromptBuf.String(), cli.ExecutingModel, toolsToInclude)
+	executingAgent := createExecutingAgent(cli, executePromptBuf.String(), toolsToInclude)
 
 	// Run executing agent
 	_, err = executingAgent.Run(
@@ -235,11 +246,15 @@ func runExecutionPhase(cli *CLI, plan string, fileInfos []map[string]interface{}
 }
 
 // createExecutingAgent creates and configures the executing agent
-func createExecutingAgent(prompt string, modelName string, tools []tools.Tool) *agent.Agent {
+func createExecutingAgent(cli *CLI, prompt string, tools []tools.Tool) *agent.Agent {
 	executingAgent := agent.New(
 		"Executing Agent",
 		prompt,
-		agent.WithClient(client.NewOllamaClient(modelName)),
+		agent.WithClient(client.New(
+			cli.ExecutingApiEndpoint,
+			cli.ExecutingApiToken,
+			cli.ExecutingModel,
+		)),
 	)
 
 	// Add the selected tools to the executing agent

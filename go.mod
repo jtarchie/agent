@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/alecthomas/kong v1.11.0
 	github.com/go-enry/go-enry/v2 v2.9.2
-	github.com/jtarchie/outrageous v0.0.0-20250519030529-79d2e3af2f39
+	github.com/jtarchie/outrageous v0.0.0-20250523022526-2e1ec51c9c12
 	github.com/onsi/gomega v1.37.0
 )
 
