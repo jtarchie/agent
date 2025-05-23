@@ -45,6 +45,7 @@ func setupLogging() {
 type CLI struct {
 	Filenames []string `arg:"" optional:"" type:"existingfile" help:"List of filenames to process."`
 	Message   string   `help:"Message to send to the planning agent." required:""`
+	Batch     bool     `help:"Enable batch mode for the executing agent." default:"false"`
 
 	Tools []string `help:"List of tools to allow the executing agent to use. Default is all." optional:"" enum:"ReadFile,RunInTerminal,InsertEditIntoFile"`
 
