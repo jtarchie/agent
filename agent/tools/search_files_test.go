@@ -81,7 +81,52 @@ func TestSearchFilesWithFileTypeFilter(t *testing.T) {
 	searcher := tools.SearchFiles{
 		Query:     "package",
 		Directory: tmpDir,
-		FileTypes: []string{".go"},
+		Files:     []string{"*.go"}, // Filter to only .go files
+	}
+
+	result, err := searcher.Call(context.Background())
+	assert.Expect(err).NotTo(HaveOccurred())
+
+	response, ok := result.(tools.SearchResponse)
+	assert.Expect(ok).To(BeTrue())
+	assert.Expect(response.TotalFiles).To(Equal(2)) // Only .go files
+	assert.Expect(response.FilesMatched).To(Equal(2))
+	assert.Expect(len(response.Results)).To(Equal(2))
+
+	// Verify all results are from .go files
+	for _, result := range response.Results {
+		assert.Expect(result.FilePath).To(HaveSuffix(".go"))
+		assert.Expect(result.LineContent).To(ContainSubstring("package"))
+	}
+}
+
+func TestSearchFilesWithGlobFilter(t *testing.T) {
+	assert := NewGomegaWithT(t)
+
+	// Create a temporary directory for testing
+	tmpDir, err := os.MkdirTemp("", "search_test")
+	assert.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create test files with various extensions
+	testFiles := map[string]string{
+		"test1.go":  "package main\nfunc Test() {}",
+		"test2.txt": "package main\nsome text content",
+		"test3.go":  "package utils\nfunc Helper() {}",
+		"test4.md":  "# Title\npackage description",
+	}
+
+	for filename, content := range testFiles {
+		filePath := filepath.Join(tmpDir, filename)
+		err := os.WriteFile(filePath, []byte(content), 0644)
+		assert.Expect(err).NotTo(HaveOccurred())
+	}
+
+	// Search only in .go files using glob pattern
+	searcher := tools.SearchFiles{
+		Query:     "package",
+		Directory: tmpDir,
+		Files:     []string{"*.go"},
 	}
 
 	result, err := searcher.Call(context.Background())
@@ -226,4 +271,209 @@ func TestSearchFilesMetadata(t *testing.T) {
 	assert.Expect(searchResult.FileSize).To(BeNumerically(">", 0))
 	assert.Expect(searchResult.ModifiedTime).NotTo(BeEmpty())
 	assert.Expect(response.Duration).NotTo(BeEmpty())
+}
+
+func TestSearchFilesWithSpecificFilesAndGlobs(t *testing.T) {
+	assert := NewGomegaWithT(t)
+
+	// Create a temporary directory structure for testing
+	tmpDir, err := os.MkdirTemp("", "search_glob_test")
+	assert.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create subdirectories
+	srcDir := filepath.Join(tmpDir, "src")
+	testsDir := filepath.Join(tmpDir, "tests")
+	docsDir := filepath.Join(tmpDir, "docs")
+	err = os.MkdirAll(srcDir, 0755)
+	assert.Expect(err).NotTo(HaveOccurred())
+	err = os.MkdirAll(testsDir, 0755)
+	assert.Expect(err).NotTo(HaveOccurred())
+	err = os.MkdirAll(docsDir, 0755)
+	assert.Expect(err).NotTo(HaveOccurred())
+
+	// Create test files with search content
+	testFiles := map[string]string{
+		"main.go":             "package main\n// TODO: implement feature\nfunc main() {}",
+		"config.json":         `{"name": "test", "TODO": "update config"}`,
+		"src/utils.go":        "package utils\n// TODO: add validation\nfunc Helper() {}",
+		"src/handler.go":      "package handlers\nfunc Handle() {}\n// No todos here",
+		"tests/main_test.go":  "package main\n// TODO: write more tests\nfunc TestMain() {}",
+		"tests/utils_test.go": "package utils\nfunc TestUtils() {}\n// Complete test",
+		"docs/README.md":      "# Project\nTODO: write documentation\n## Features",
+		"docs/API.md":         "# API\n## Endpoints\nAll documented",
+	}
+
+	for filename, content := range testFiles {
+		filePath := filepath.Join(tmpDir, filename)
+		err := os.WriteFile(filePath, []byte(content), 0644)
+		assert.Expect(err).NotTo(HaveOccurred())
+	}
+
+	t.Run("SearchSpecificFiles", func(t *testing.T) {
+		// Test searching specific files only
+		searcher := tools.SearchFiles{
+			Query:     "TODO",
+			Directory: tmpDir,
+			Files:     []string{"main.go", "config.json"},
+		}
+
+		result, err := searcher.Call(context.Background())
+		assert.Expect(err).NotTo(HaveOccurred())
+
+		response, ok := result.(tools.SearchResponse)
+		assert.Expect(ok).To(BeTrue())
+		assert.Expect(response.TotalFiles).To(Equal(2))
+		assert.Expect(response.FilesMatched).To(Equal(2))
+		assert.Expect(len(response.Results)).To(Equal(2))
+
+		// Verify only specified files were searched
+		foundFiles := make(map[string]bool)
+		for _, result := range response.Results {
+			fileName := filepath.Base(result.FilePath)
+			foundFiles[fileName] = true
+			assert.Expect(result.LineContent).To(ContainSubstring("TODO"))
+		}
+		assert.Expect(foundFiles["main.go"]).To(BeTrue())
+		assert.Expect(foundFiles["config.json"]).To(BeTrue())
+	})
+
+	t.Run("SearchWithSimpleGlob", func(t *testing.T) {
+		// Test simple glob pattern for Go files
+		searcher := tools.SearchFiles{
+			Query:     "TODO",
+			Directory: tmpDir,
+			Files:     []string{"*.go"},
+		}
+
+		result, err := searcher.Call(context.Background())
+		assert.Expect(err).NotTo(HaveOccurred())
+
+		response, ok := result.(tools.SearchResponse)
+		assert.Expect(ok).To(BeTrue())
+		assert.Expect(response.TotalFiles).To(Equal(1)) // Only main.go in root
+		assert.Expect(response.FilesMatched).To(Equal(1))
+		assert.Expect(len(response.Results)).To(Equal(1))
+
+		fileName := filepath.Base(response.Results[0].FilePath)
+		assert.Expect(fileName).To(Equal("main.go"))
+	})
+
+	t.Run("SearchWithDoubleStarGlob", func(t *testing.T) {
+		// Test doublestar pattern for all Go files recursively
+		searcher := tools.SearchFiles{
+			Query:     "// TODO",
+			Directory: tmpDir,
+			Files:     []string{"**/*.go"},
+		}
+
+		result, err := searcher.Call(context.Background())
+		assert.Expect(err).NotTo(HaveOccurred())
+
+		response, ok := result.(tools.SearchResponse)
+		assert.Expect(ok).To(BeTrue())
+		assert.Expect(response.TotalFiles).To(Equal(5))   // main.go, src/utils.go, tests/main_test.go, tests/utils_test.go
+		assert.Expect(response.FilesMatched).To(Equal(3)) // Only 3 have TODO comments
+
+		// Verify expected files were found
+		foundFiles := make(map[string]bool)
+		for _, result := range response.Results {
+			fileName := filepath.Base(result.FilePath)
+			foundFiles[fileName] = true
+		}
+		assert.Expect(foundFiles["main.go"]).To(BeTrue())
+		assert.Expect(foundFiles["utils.go"]).To(BeTrue())
+		assert.Expect(foundFiles["main_test.go"]).To(BeTrue())
+		assert.Expect(foundFiles["utils_test.go"]).To(BeFalse()) // No TODO in this file
+	})
+
+	t.Run("SearchWithMixedPatternsAndFiles", func(t *testing.T) {
+		// Test combination of specific files and glob patterns
+		searcher := tools.SearchFiles{
+			Query:     "TODO",
+			Directory: tmpDir,
+			Files:     []string{"config.json", "src/*.go", "docs/**/*.md"},
+		}
+
+		result, err := searcher.Call(context.Background())
+		assert.Expect(err).NotTo(HaveOccurred())
+
+		response, ok := result.(tools.SearchResponse)
+		assert.Expect(ok).To(BeTrue())
+		assert.Expect(response.TotalFiles).To(Equal(5))   // config.json, src/utils.go, src/handler.go, docs/README.md, docs/API.md
+		assert.Expect(response.FilesMatched).To(Equal(4)) // Only 3 have TODO
+
+		// Check that we got results from different file types
+		foundExtensions := make(map[string]bool)
+		for _, result := range response.Results {
+			ext := filepath.Ext(result.FilePath)
+			foundExtensions[ext] = true
+		}
+		assert.Expect(foundExtensions[".json"]).To(BeTrue())
+		assert.Expect(foundExtensions[".go"]).To(BeTrue())
+		assert.Expect(foundExtensions[".md"]).To(BeTrue())
+	})
+
+	t.Run("SearchWithNonExistentFile", func(t *testing.T) {
+		// Test with a mix of existing and non-existent files
+		searcher := tools.SearchFiles{
+			Query:     "TODO",
+			Directory: tmpDir,
+			Files:     []string{"main.go", "nonexistent.txt", "src/utils.go"},
+		}
+
+		result, err := searcher.Call(context.Background())
+		assert.Expect(err).NotTo(HaveOccurred())
+
+		response, ok := result.(tools.SearchResponse)
+		assert.Expect(ok).To(BeTrue())
+		assert.Expect(response.TotalFiles).To(Equal(2)) // Only existing files
+		assert.Expect(response.FilesMatched).To(Equal(2))
+	})
+
+	t.Run("SearchWithAbsolutePaths", func(t *testing.T) {
+		// Test with absolute file paths
+		mainGoPath := filepath.Join(tmpDir, "main.go")
+		utilsGoPath := filepath.Join(tmpDir, "src", "utils.go")
+
+		searcher := tools.SearchFiles{
+			Query:     "TODO",
+			Directory: tmpDir,
+			Files:     []string{mainGoPath, utilsGoPath},
+		}
+
+		result, err := searcher.Call(context.Background())
+		assert.Expect(err).NotTo(HaveOccurred())
+
+		response, ok := result.(tools.SearchResponse)
+		assert.Expect(ok).To(BeTrue())
+		assert.Expect(response.TotalFiles).To(Equal(2))
+		assert.Expect(response.FilesMatched).To(Equal(2))
+	})
+
+	t.Run("SearchWithMultipleFileTypeGlobs", func(t *testing.T) {
+		// Test that multiple glob patterns work for different file types
+		searcher := tools.SearchFiles{
+			Query:     "package",
+			Directory: tmpDir,
+			Files:     []string{"**/*.go", "**/*.json"}, // Go and JSON files
+		}
+
+		result, err := searcher.Call(context.Background())
+		assert.Expect(err).NotTo(HaveOccurred())
+
+		response, ok := result.(tools.SearchResponse)
+		assert.Expect(ok).To(BeTrue())
+		assert.Expect(response.TotalFiles).To(Equal(6))   // 4 .go files + 1 .json file
+		assert.Expect(response.FilesMatched).To(Equal(5)) // 4 .go files + 1 .json file
+
+		// Verify results contain both .go and .json files
+		foundExtensions := make(map[string]bool)
+		for _, result := range response.Results {
+			ext := filepath.Ext(result.FilePath)
+			foundExtensions[ext] = true
+		}
+		assert.Expect(foundExtensions[".go"]).To(BeTrue())
+		assert.Expect(foundExtensions[".json"]).To(BeFalse())
+	})
 }

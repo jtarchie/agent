@@ -10,13 +10,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // SearchFiles represents a tool for searching through files in a directory
 type SearchFiles struct {
 	Query     string   `json:"query" description:"The search term to look for in files."`
 	Directory string   `json:"directory" description:"The directory to search in. Defaults to current directory if not specified."`
-	FileTypes []string `json:"fileTypes,omitempty" description:"Optional file extensions to filter by (e.g., ['.go', '.txt']). If not specified, searches all files."`
+	Files     []string `json:"files,omitempty" description:"Optional list of specific file paths or glob patterns to search (e.g., ['main.go', '**/*.md', 'src/**/*.js']). If specified, only these files/patterns will be searched."`
 }
 
 // SearchResult represents the result of a search operation
@@ -101,22 +103,20 @@ func (s SearchFiles) Call(ctx context.Context) (any, error) {
 
 	// Collect results
 	var results []SearchResult
-	filesWithMatches := make(map[string]bool)
 
 	for result := range resultsChan {
 		results = append(results, result)
-		filesWithMatches[result.FilePath] = true
 	}
 
 	return SearchResponse{
 		Results:      results,
 		TotalFiles:   len(files),
-		FilesMatched: len(filesWithMatches),
+		FilesMatched: len(results),
 		Duration:     time.Since(startTime).String(),
 	}, nil
 }
 
-// getFilesToSearch returns a list of files to search based on directory and file type filters
+// getFilesToSearch returns a list of files to search based on directory and specific files/globs
 func (s SearchFiles) getFilesToSearch(directory string) ([]string, error) {
 	// Check if directory exists
 	if _, err := os.Stat(directory); os.IsNotExist(err) {
@@ -125,6 +125,12 @@ func (s SearchFiles) getFilesToSearch(directory string) ([]string, error) {
 
 	var files []string
 
+	// If specific files or globs are provided, use those instead of walking the directory
+	if len(s.Files) > 0 {
+		return s.resolveFilesAndGlobs(directory)
+	}
+
+	// Original directory walking logic - search all files
 	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err // Return errors to be handled by caller
@@ -140,26 +146,78 @@ func (s SearchFiles) getFilesToSearch(directory string) ([]string, error) {
 			return nil
 		}
 
-		// Apply file type filter if specified
-		if len(s.FileTypes) > 0 {
-			ext := filepath.Ext(path)
-			matched := false
-			for _, allowedExt := range s.FileTypes {
-				if strings.EqualFold(ext, allowedExt) {
-					matched = true
-					break
-				}
-			}
-			if !matched {
-				return nil
-			}
-		}
-
 		files = append(files, path)
 		return nil
 	})
 
 	return files, err
+}
+
+// resolveFilesAndGlobs resolves specific file paths and glob patterns
+func (s SearchFiles) resolveFilesAndGlobs(directory string) ([]string, error) {
+	var allFiles []string
+	seen := make(map[string]bool) // To avoid duplicates
+
+	for _, fileOrGlob := range s.Files {
+		// Convert to absolute path if relative
+		var searchPath string
+		if filepath.IsAbs(fileOrGlob) {
+			searchPath = fileOrGlob
+		} else {
+			searchPath = filepath.Join(directory, fileOrGlob)
+		}
+
+		// Check if it's a direct file path first
+		if info, err := os.Stat(searchPath); err == nil && !info.IsDir() {
+			// It's a direct file, add it if it passes filters
+			if s.passesFilters(searchPath) && !seen[searchPath] {
+				allFiles = append(allFiles, searchPath)
+				seen[searchPath] = true
+			}
+			continue
+		}
+
+		// Try as a glob pattern
+		matches, err := s.globFiles(directory, fileOrGlob)
+		if err != nil {
+			// Log warning but continue with other patterns
+			continue
+		}
+
+		for _, match := range matches {
+			if s.passesFilters(match) && !seen[match] {
+				allFiles = append(allFiles, match)
+				seen[match] = true
+			}
+		}
+	}
+
+	return allFiles, nil
+}
+
+// globFiles uses doublestar to find files matching a glob pattern
+func (s SearchFiles) globFiles(baseDir, pattern string) ([]string, error) {
+	// Use FilepathGlob for local filesystem with proper path separators
+	if filepath.IsAbs(pattern) {
+		// For absolute patterns, use them directly
+		matches, err := doublestar.FilepathGlob(pattern, doublestar.WithFilesOnly())
+		return matches, err
+	}
+
+	// For relative patterns, join with base directory
+	fullPattern := filepath.Join(baseDir, pattern)
+	matches, err := doublestar.FilepathGlob(fullPattern, doublestar.WithFilesOnly())
+	return matches, err
+}
+
+// passesFilters checks if a file passes the current filters
+func (s SearchFiles) passesFilters(filePath string) bool {
+	// Skip hidden files
+	if strings.HasPrefix(filepath.Base(filePath), ".") {
+		return false
+	}
+
+	return true
 }
 
 // searchWorker processes files from the channel and searches for the query
