@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 type RunInTerminal struct {
@@ -12,27 +13,28 @@ type RunInTerminal struct {
 }
 
 func (r RunInTerminal) Call(ctx context.Context) (any, error) {
-	var (
-		out []byte
-		err error
-	)
-
 	if len(r.Command) == 0 {
 		return nil, fmt.Errorf("command is required")
 	}
 
-	if len(r.Command) == 1 {
-		out, err = exec.CommandContext(ctx, r.Command[0]).CombinedOutput()
-	} else {
-		out, err = exec.CommandContext(ctx, r.Command[0], r.Command[1:]...).CombinedOutput()
+	command := exec.CommandContext(ctx, r.Command[0])
+
+	if len(r.Command) > 1 {
+		command = exec.CommandContext(ctx, r.Command[0], r.Command[1:]...)
 	}
 
+	output := &strings.Builder{}
+	command.Stdout = output
+	command.Stderr = output
+
+	err := command.Run()
 	if err != nil {
-		return nil, fmt.Errorf("error running command: %w\nOutput: %s", err, out)
+		return nil, fmt.Errorf("error running command: %w", err)
 	}
 
 	return map[string]any{
-		"status": "completed",
-		"output": string(out),
+		"status":    "completed",
+		"output":    output.String(),
+		"exit_code": command.ProcessState.ExitCode(),
 	}, nil
 }

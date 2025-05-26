@@ -28,8 +28,9 @@ func TestRunInTerminal(t *testing.T) {
 	status, ok := payload.(map[string]any)
 	assert.Expect(ok).To(BeTrue())
 	assert.Expect(status).To(Equal(map[string]any{
-		"status": "completed",
-		"output": "Hello, World!\n",
+		"status":    "completed",
+		"output":    "Hello, World!\n",
+		"exit_code": 0,
 	}))
 }
 
