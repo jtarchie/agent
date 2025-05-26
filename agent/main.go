@@ -52,11 +52,11 @@ type CLI struct {
 
 	PlanningApiToken    string `help:"API token for OpenAI compatible endpoint"`
 	PlanningApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1"`
-	PlanningModel       string `help:"Model to use for the planning agent." default:"phi4-mini-reasoning:latest"`
+	PlanningModel       string `help:"Model to use for the planning agent." default:"phi4-reasoning:latest"`
 
 	ExecutingApiToken    string `help:"API token for OpenAI compatible endpoint"`
 	ExecutingApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1"`
-	ExecutingModel       string `help:"Model to use for the executing agent." default:"qwen3:8b"`
+	ExecutingModel       string `help:"Model to use for the executing agent." default:"qwen3:32b"`
 }
 
 // FileInfo represents information about a file in the codebase
@@ -407,7 +407,7 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 	executingAgent := createExecutingAgent(cli, executePromptBuf.String(), toolsToInclude)
 
 	// Run executing agent
-	_, err = executingAgent.Run(
+	response, err := executingAgent.Run(
 		context.Background(),
 		agent.Messages{
 			agent.Message{
@@ -420,11 +420,13 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 		return fmt.Errorf("failed to run executing agent: %w", err)
 	}
 
+	slog.Debug("execution.agent", "response", response.Messages[len(response.Messages)-1].Content)
+
 	return nil
 }
 
 // createExecutingAgent creates and configures the executing agent
-func createExecutingAgent(cli *CLI, prompt string, tools []tools.Tool) *agent.Agent {
+func createExecutingAgent(cli *CLI, prompt string, tools []agent.Tool) *agent.Agent {
 	executingAgent := agent.New(
 		"Executing Agent",
 		prompt,
@@ -435,12 +437,14 @@ func createExecutingAgent(cli *CLI, prompt string, tools []tools.Tool) *agent.Ag
 		)),
 	)
 
+	toolNames := []string{}
 	// Add the selected tools to the executing agent
 	for _, tool := range tools {
-		executingAgent.Tools.Add(agent.MustWrapStruct(tool.Description, tool.Implementation))
+		executingAgent.Tools.Add(tool)
+		toolNames = append(toolNames, tool.Name)
 	}
 
-	slog.Debug("executing.agent", "prompt", prompt)
+	slog.Debug("executing.agent", "prompt", prompt, "tools", toolNames, "batch_mode", cli.Batch)
 
 	return executingAgent
 }
