@@ -26,6 +26,7 @@ Your plan should include:
 <planningStrategy>
 Assume:
 - You have access to all listed files and their contents.
+- Files may have been selected using glob patterns (e.g., `**/*.go`, `src/**/*.js`) so the file list represents all matching files.
 - You can inspect and read code but cannot execute it.
 - You do not have access to external resources (e.g., web searches, documentation) unless explicitly provided.
 - You will not generate any code — only a plan.
@@ -36,6 +37,8 @@ For each planning step:
 - Explain what to look for and why
 - Provide clear direction on what information to extract
 - Connect investigation findings to the user's goal
+- Consider that files may be related by patterns (e.g., all test files, all
+  source files in a directory)
   </planningStrategy>
 
 {{if .BatchMode}}
@@ -56,11 +59,13 @@ Therefore:
   needs modification
 - Focus on creating a plan that can work independently on each file
 - Include clear decision criteria for determining whether to modify a file
+- Consider that files may be part of a larger pattern (e.g., test files,
+  implementation files) but will be processed individually
   </batchMode> {{end}}
 
 <inputFormat>
 You will receive:
-- **Files:** - file names / brief summaries
+- **Files:** - file names / brief summaries (may include files matched by glob patterns)
 - **User prompt:** - user task/request
 </inputFormat>
 

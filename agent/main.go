@@ -13,6 +13,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/alecthomas/kong"
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-enry/go-enry/v2"
 	"github.com/jtarchie/agent/agent/tools"
 	"github.com/jtarchie/outrageous/agent"
@@ -43,9 +44,9 @@ func setupLogging() {
 
 // CLI defines the command-line interface structure
 type CLI struct {
-	Filenames []string `arg:"" optional:"" type:"existingfile" help:"List of filenames to process."`
-	Message   string   `help:"Message to send to the planning agent." required:""`
-	Batch     bool     `help:"Enable batch mode for the executing agent." default:"false"`
+	Patterns []string `arg:"" optional:"" help:"List of file patterns (globs) or filenames to process. Supports doublestar (**) patterns."`
+	Message  string   `help:"Message to send to the planning agent." required:""`
+	Batch    bool     `help:"Enable batch mode for the executing agent." default:"false"`
 
 	Tools []string `help:"List of tools to allow the executing agent to use. Default is all." optional:"" enum:"ReadFile,RunInTerminal,InsertEditIntoFile"`
 
@@ -73,8 +74,14 @@ func (cli *CLI) Run() error {
 		return fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
+	// Process patterns to get actual files
+	filenames, err := expandPatterns(cli.Patterns, pwd)
+	if err != nil {
+		return err
+	}
+
 	// Process files
-	fileInfos, err := processFiles(cli.Filenames, pwd)
+	fileInfos, err := processFiles(filenames, pwd)
 	if err != nil {
 		return err
 	}
@@ -92,6 +99,77 @@ func (cli *CLI) Run() error {
 
 	// Create and run the executing agent normally (all files at once)
 	return runExecutionPhase(cli, plan, pwd, fileInfos)
+}
+
+// expandPatterns expands glob patterns into actual file paths
+func expandPatterns(patterns []string, pwd string) ([]string, error) {
+	var filenames []string
+	seenFiles := make(map[string]bool)
+
+	for _, pattern := range patterns {
+		// Check if pattern contains glob characters
+		if strings.ContainsAny(pattern, "*?[{") {
+			// It's a glob pattern - use doublestar to expand it
+			matches, err := doublestar.FilepathGlob(pattern, doublestar.WithFilesOnly())
+			if err != nil {
+				return nil, fmt.Errorf("failed to expand pattern %s: %w", pattern, err)
+			}
+
+			if len(matches) == 0 {
+				slog.Warn("pattern matched no files", "pattern", pattern)
+				continue
+			}
+
+			for _, match := range matches {
+				// Convert to absolute path for consistency
+				absMatch, err := filepath.Abs(match)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get absolute path for %s: %w", match, err)
+				}
+
+				// Ensure file is within current working directory
+				if !strings.HasPrefix(absMatch, pwd) {
+					slog.Warn("file outside working directory, skipping", "file", match, "pwd", pwd)
+					continue
+				}
+
+				// Avoid duplicates
+				if !seenFiles[absMatch] {
+					filenames = append(filenames, match)
+					seenFiles[absMatch] = true
+				}
+			}
+		} else {
+			// It's a regular filename - check if it exists
+			if _, err := os.Stat(pattern); err != nil {
+				return nil, fmt.Errorf("file %s does not exist: %w", pattern, err)
+			}
+
+			// Convert to absolute path for consistency check
+			absPattern, err := filepath.Abs(pattern)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get absolute path for %s: %w", pattern, err)
+			}
+
+			// Ensure file is within current working directory
+			if !strings.HasPrefix(absPattern, pwd) {
+				return nil, fmt.Errorf("file %s is not within the current working directory %s", pattern, pwd)
+			}
+
+			// Avoid duplicates
+			if !seenFiles[absPattern] {
+				filenames = append(filenames, pattern)
+				seenFiles[absPattern] = true
+			}
+		}
+	}
+
+	if len(filenames) == 0 {
+		return nil, fmt.Errorf("no files found matching the provided patterns")
+	}
+
+	slog.Debug("expanded patterns", "patterns", patterns, "files", filenames, "count", len(filenames))
+	return filenames, nil
 }
 
 // processFiles reads and analyzes the files provided as CLI arguments
