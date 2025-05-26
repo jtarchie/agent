@@ -14,22 +14,22 @@ type Tool struct {
 // availableTools defines all possible tools with their descriptions and implementations
 var availableTools = []Tool{
 	{
-		Name:           "ReadFile",
+		Name:           "read_file",
 		Description:    "Read specific lines from a file in the codebase. Use this tool when you know the file path and want to inspect only a section of the file to avoid loading large files in full. This is useful for reviewing implementations, extracting function or class definitions, or confirming assumptions about code structure.",
 		Implementation: ReadFile{},
 	},
 	{
-		Name:           "RunInTerminal",
+		Name:           "run_in_terminal",
 		Description:    "Run a command in the terminal. Use this tool when you need to execute a command that is not directly related to the codebase, such as running tests, building the project, or executing scripts.",
 		Implementation: RunInTerminal{},
 	},
 	{
-		Name:           "InsertEditIntoFile",
+		Name:           "insert_edit_into_file",
 		Description:    "Insert or edit a file in the codebase. Use this tool when you need to apply changes to a file based on the provided unified diff. This is useful for making code modifications, applying patches, or updating configurations.",
 		Implementation: InsertEditIntoFile{},
 	},
 	{
-		Name:           "SearchFiles",
+		Name:           "search_files",
 		Description:    "Search for text content across files in a directory. Performs case-insensitive search and returns the first occurrence found in each matching file along with metadata like line number, file size, and modification time. Supports file type filtering and uses efficient goroutines for concurrent processing.",
 		Implementation: SearchFiles{},
 	},
