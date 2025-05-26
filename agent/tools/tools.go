@@ -28,6 +28,11 @@ var availableTools = []Tool{
 		Description:    "Insert or edit a file in the codebase. Use this tool when you need to apply changes to a file based on the provided unified diff. This is useful for making code modifications, applying patches, or updating configurations.",
 		Implementation: InsertEditIntoFile{},
 	},
+	{
+		Name:           "SearchFiles",
+		Description:    "Search for text content across files in a directory. Performs case-insensitive search and returns the first occurrence found in each matching file along with metadata like line number, file size, and modification time. Supports file type filtering and uses efficient goroutines for concurrent processing.",
+		Implementation: SearchFiles{},
+	},
 }
 
 // selectTools determines which tools to include based on CLI input
