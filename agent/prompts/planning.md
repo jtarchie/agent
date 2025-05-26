@@ -27,18 +27,22 @@ Your plan should include:
 Assume:
 - You have access to all listed files and their contents.
 - Files may have been selected using glob patterns (e.g., `**/*.go`, `src/**/*.js`) so the file list represents all matching files.
+- If no specific files are listed, you are working from the current directory and should plan to use the `search_files` tool to explore the codebase.
 - You can inspect and read code but cannot execute it.
 - You do not have access to external resources (e.g., web searches, documentation) unless explicitly provided.
 - You will not generate any code — only a plan.
 
 For each planning step:
 
-- Be specific about which files to examine
+- Be specific about which files to examine (or how to discover them using
+  search_files)
 - Explain what to look for and why
 - Provide clear direction on what information to extract
 - Connect investigation findings to the user's goal
 - Consider that files may be related by patterns (e.g., all test files, all
   source files in a directory)
+- When no specific files are provided, include steps to explore the directory
+  structure and identify relevant files
   </planningStrategy>
 
 {{if .BatchMode}}
@@ -65,7 +69,7 @@ Therefore:
 
 <inputFormat>
 You will receive:
-- **Files:** - file names / brief summaries (may include files matched by glob patterns)
+- **Files:** - file names / brief summaries (may include files matched by glob patterns, or may be empty if working from current directory)
 - **User prompt:** - user task/request
 </inputFormat>
 

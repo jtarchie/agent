@@ -44,11 +44,11 @@ func setupLogging() {
 
 // CLI defines the command-line interface structure
 type CLI struct {
-	Patterns []string `arg:"" optional:"" help:"List of file patterns (globs) or filenames to process. Supports doublestar (**) patterns."`
+	Patterns []string `arg:"" optional:"" help:"List of file patterns (globs) or filenames to process. Supports doublestar (**) patterns. If empty, works from current directory."`
 	Message  string   `help:"Message to send to the planning agent." required:""`
 	Batch    bool     `help:"Enable batch mode for the executing agent." default:"false"`
 
-	Tools []string `help:"List of tools to allow the executing agent to use. Default is all." optional:"" enum:"ReadFile,RunInTerminal,InsertEditIntoFile"`
+	Tools []string `help:"List of tools to allow the executing agent to use. Default is all." optional:""`
 
 	PlanningApiToken    string `help:"API token for OpenAI compatible endpoint"`
 	PlanningApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1"`
@@ -103,6 +103,12 @@ func (cli *CLI) Run() error {
 
 // expandPatterns expands glob patterns into actual file paths
 func expandPatterns(patterns []string, pwd string) ([]string, error) {
+	// If no patterns provided, return empty slice to indicate working from current directory
+	if len(patterns) == 0 {
+		slog.Debug("no patterns provided, working from current directory", "pwd", pwd)
+		return []string{}, nil
+	}
+
 	var filenames []string
 	seenFiles := make(map[string]bool)
 
@@ -164,6 +170,11 @@ func expandPatterns(patterns []string, pwd string) ([]string, error) {
 		}
 	}
 
+	// For empty patterns, we return empty slice (handled elsewhere)
+	if len(patterns) == 0 {
+		return filenames, nil
+	}
+
 	if len(filenames) == 0 {
 		return nil, fmt.Errorf("no files found matching the provided patterns")
 	}
@@ -174,6 +185,12 @@ func expandPatterns(patterns []string, pwd string) ([]string, error) {
 
 // processFiles reads and analyzes the files provided as CLI arguments
 func processFiles(filenames []string, pwd string) ([]map[string]interface{}, error) {
+	// If no files specified, return empty slice to indicate working from current directory
+	if len(filenames) == 0 {
+		slog.Debug("no files specified, working from current directory", "pwd", pwd)
+		return []map[string]interface{}{}, nil
+	}
+
 	fileInfo := make([]map[string]interface{}, 0, len(filenames))
 
 	for _, filename := range filenames {
@@ -281,6 +298,17 @@ func runPlanningPhase(cli *CLI, pwd string, fileInfos []map[string]interface{}) 
 func runBatchExecution(cli *CLI, plan string, pwd string, allFileInfos []map[string]interface{}) error {
 	slog.Info("batch.start", "plan", plan)
 
+	// If no files specified, run once for current directory
+	if len(allFileInfos) == 0 {
+		slog.Info("batch.iter", "working_directory", pwd, "index", 1, "total", 1)
+		err := runExecutionPhase(cli, plan, pwd, allFileInfos)
+		if err != nil {
+			return fmt.Errorf("execution failed for current directory: %w", err)
+		}
+		slog.Info("completed processing current directory in batch mode")
+		return nil
+	}
+
 	for i, fileInfo := range allFileInfos {
 		singleFileInfo := []map[string]interface{}{fileInfo}
 		fileName := fileInfo["filename"].(string)
@@ -293,18 +321,24 @@ func runBatchExecution(cli *CLI, plan string, pwd string, allFileInfos []map[str
 			return fmt.Errorf("execution failed for file %s: %w", fileName, err)
 		}
 
-		slog.Info("completed processing file in batch mode", "file", fileName)
+		slog.Info("batch.completed", "file", fileName)
 	}
 
+	slog.Info("batch.done", "total_files", len(allFileInfos))
 	return nil
 }
 
 // createPlanningUserMessage creates the user message for the planning agent
 func createPlanningUserMessage(message string, fileInfos []map[string]interface{}) string {
-	filesList := "Files: \n"
-	for _, file := range fileInfos {
-		filesList += fmt.Sprintf("- %s: language %q, size %d\n",
-			file["filename"], file["language"], file["size"])
+	var filesList string
+	if len(fileInfos) == 0 {
+		filesList = "Files: Working from current directory (no specific files provided)\n"
+	} else {
+		filesList = "Files: \n"
+		for _, file := range fileInfos {
+			filesList += fmt.Sprintf("- %s: language %q, size %d\n",
+				file["filename"], file["language"], file["size"])
+		}
 	}
 
 	// Add batch mode context if needed
@@ -347,6 +381,14 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 	// Check if we're in batch mode with a single file
 	isBatchSingleFile := cli.Batch && len(fileInfos) == 1
 
+	// Handle current file for template (may be empty if no files specified)
+	var currentFile interface{}
+	if len(fileInfos) > 0 {
+		currentFile = fileInfos[0]["filename"]
+	} else {
+		currentFile = ""
+	}
+
 	// Execute template for execution agent
 	var executePromptBuf strings.Builder
 	err = executeTmpl.Execute(&executePromptBuf, map[string]interface{}{
@@ -355,7 +397,7 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 		"Tools":        toolsToInclude,
 		"CustomPrompt": string(customPrompt),
 		"BatchMode":    isBatchSingleFile,
-		"CurrentFile":  fileInfos[0]["filename"],
+		"CurrentFile":  currentFile,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute execute prompt template: %w", err)
