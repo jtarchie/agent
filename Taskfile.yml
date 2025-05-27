@@ -7,3 +7,14 @@ tasks:
       - gofmt -w .
       - golangci-lint run --fix --timeout "10m"
       - go test ./... -v
+  build:
+    cmds:
+      - |
+        rm -Rf .build/
+        mkdir -p .build/
+        cd .build
+        go run ../agent/main.go \
+          --message "Create a Node.js Express application with two endpoints: GET /hello that returns 'Hello World' and GET /time that returns the current time in JSON format. Include package.json with proper dependencies, a main server file, and any necessary setup." \
+          --executing-api-token "$OPENROUTER_API_KEY" \
+          --executing-api-endpoint "https://openrouter.ai/api/v1" \
+          --executing-model "google/gemini-2.5-flash-preview-05-20"
