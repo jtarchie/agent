@@ -8,7 +8,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/go-enry/go-enry/v2 v2.9.2
 	github.com/iancoleman/strcase v0.3.0
-	github.com/jtarchie/outrageous v0.0.0-20250523022526-2e1ec51c9c12
+	github.com/jtarchie/outrageous v0.0.0-20250527014131-e9eb334853e5
 	github.com/onsi/gomega v1.37.0
 	github.com/samber/lo v1.50.0
 )

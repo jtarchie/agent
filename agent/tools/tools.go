@@ -48,11 +48,3 @@ func Select(requestedTools []string) []agent.Tool {
 
 	return toolsToInclude
 }
-
-func init() {
-	availableTools = lo.Map(availableTools, func(tool agent.Tool, _ int) agent.Tool {
-		// Ensure the tool name is formatted correctly
-		tool.Name = strcase.ToSnake(tool.Name)
-		return tool
-	})
-}

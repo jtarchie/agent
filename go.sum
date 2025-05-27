@@ -39,8 +39,8 @@ github.com/huandu/xstrings v1.5.0 h1:2ag3IFq9ZDANvthTwTiqSSZLjDc+BedvHPAp5tJy2TI
 github.com/huandu/xstrings v1.5.0/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
 github.com/iancoleman/strcase v0.3.0 h1:nTXanmYxhfFAMjZL34Ov6gkzEsSJZ5DbhxWjvSASxEI=
 github.com/iancoleman/strcase v0.3.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
-github.com/jtarchie/outrageous v0.0.0-20250523022526-2e1ec51c9c12 h1:ZcLoQ9oMuUuFi+X6pQAHocOERhwtHNGKY320in/r+WI=
-github.com/jtarchie/outrageous v0.0.0-20250523022526-2e1ec51c9c12/go.mod h1:cKgiJDKI4mauoJmTfk0JkDGbD3hjd8pVunKSn8yOGjY=
+github.com/jtarchie/outrageous v0.0.0-20250527014131-e9eb334853e5 h1:RgJs/5aDKnQg6bMRLakWe/GdYESzzUMQo7dITqo/Ys4=
+github.com/jtarchie/outrageous v0.0.0-20250527014131-e9eb334853e5/go.mod h1:cqSkmvdGcolxy6gKQfjKDIN+XOlIu/1YgIDH23Ap+UQ=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
 github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
 github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
