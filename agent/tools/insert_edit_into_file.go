@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type InsertEditIntoFile struct {
@@ -13,7 +14,17 @@ type InsertEditIntoFile struct {
 }
 
 func (i InsertEditIntoFile) Call(ctx context.Context) (any, error) {
-	err := os.WriteFile(i.FilePath, []byte(i.Content), 0644)
+	filePath, err := filepath.Abs(i.FilePath)
+	if err != nil {
+		return nil, fmt.Errorf("error getting absolute path for %s: %w", i.FilePath, err)
+	}
+
+	err = os.MkdirAll(filepath.Dir(filePath), 0755) // Ensure the directory exists
+	if err != nil {
+		return nil, fmt.Errorf("error creating directories for %s: %w", i.FilePath, err)
+	}
+
+	err = os.WriteFile(filePath, []byte(i.Content), 0644)
 	if err != nil {
 		return nil, fmt.Errorf("error writing to file %s: %w", i.FilePath, err)
 	}
