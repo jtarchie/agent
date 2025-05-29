@@ -8,7 +8,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/go-enry/go-enry/v2 v2.9.2
 	github.com/iancoleman/strcase v0.3.0
-	github.com/jtarchie/outrageous v0.0.0-20250527014131-e9eb334853e5
+	github.com/jtarchie/outrageous v0.0.0-20250529005428-4dd6dc0e1ec9
 	github.com/onsi/gomega v1.37.0
 	github.com/samber/lo v1.50.0
 )
@@ -26,6 +26,7 @@ require (
 	github.com/sashabaranov/go-openai v1.40.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.8.0 // indirect
+	github.com/tiendc/go-deepcopy v1.6.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
