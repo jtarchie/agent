@@ -8,7 +8,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/go-enry/go-enry/v2 v2.9.2
 	github.com/iancoleman/strcase v0.3.0
-	github.com/jtarchie/outrageous v0.0.0-20250529005428-4dd6dc0e1ec9
+	github.com/jtarchie/outrageous v0.0.0-20250529021646-0a679d4de2c2
 	github.com/onsi/gomega v1.37.0
 	github.com/samber/lo v1.50.0
 )
@@ -32,3 +32,5 @@ require (
 	golang.org/x/text v0.25.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/sashabaranov/go-openai => github.com/jtarchie/go-openai v0.0.0-20250529022844-7b735d1a943e

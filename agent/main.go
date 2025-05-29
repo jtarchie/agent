@@ -376,7 +376,7 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 	}
 
 	// Select tools to include
-	toolsToInclude := tools.Select(cli.Tools)
+	toolsToInclude := tools.Select(pwd, cli.Tools)
 
 	// Check if we're in batch mode with a single file
 	isBatchSingleFile := cli.Batch && len(fileInfos) == 1

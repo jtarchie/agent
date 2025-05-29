@@ -19,6 +19,8 @@ type SearchFiles struct {
 	Query     string   `json:"query" description:"The search term to look for in files."`
 	Directory string   `json:"directory" description:"The directory to search in. Defaults to current directory if not specified."`
 	Files     []string `json:"files,omitempty" description:"Optional list of specific file paths or glob patterns to search (e.g., ['main.go', '**/*.md', 'src/**/*.js']). If specified, only these files/patterns will be searched."`
+
+	RootPath string `json:"-"`
 }
 
 // SearchResult represents the result of a search operation
@@ -51,6 +53,27 @@ func (s SearchFiles) Call(ctx context.Context) (any, error) {
 		directory = "."
 	}
 
+	// Security check - ensure directory is inside rootPath if provided
+	if s.RootPath != "" {
+		dirPath, err := filepath.Abs(directory)
+		if err != nil {
+			return nil, fmt.Errorf("error getting absolute path for directory %s: %w", directory, err)
+		}
+
+		rootPath, err := filepath.Abs(s.RootPath)
+		if err != nil {
+			return nil, fmt.Errorf("error getting absolute path for rootPath %s: %w", s.RootPath, err)
+		}
+
+		// Make sure paths have trailing slashes for proper prefix checking
+		rootPathWithSlash := ensureTrailingSlash(rootPath)
+		dirPathWithSlash := ensureTrailingSlash(dirPath)
+
+		if !strings.HasPrefix(dirPathWithSlash, rootPathWithSlash) && !strings.HasPrefix(dirPath, rootPath) {
+			return nil, fmt.Errorf("security error: cannot search in %s outside of root path %s", dirPath, rootPath)
+		}
+	}
+
 	// Convert query to lowercase for case-insensitive search
 	queryLower := strings.ToLower(s.Query)
 
@@ -67,6 +90,15 @@ func (s SearchFiles) Call(ctx context.Context) (any, error) {
 			FilesMatched: 0,
 			Duration:     time.Since(startTime).String(),
 		}, nil
+	}
+
+	// Security check - filter out files outside rootPath if provided
+	if s.RootPath != "" {
+		filteredFiles, err := s.filterFilesByRootPath(files)
+		if err != nil {
+			return nil, fmt.Errorf("error filtering files by root path: %w", err)
+		}
+		files = filteredFiles
 	}
 
 	// Limit goroutines to number of CPUs
@@ -114,6 +146,32 @@ func (s SearchFiles) Call(ctx context.Context) (any, error) {
 		FilesMatched: len(results),
 		Duration:     time.Since(startTime).String(),
 	}, nil
+}
+
+// filterFilesByRootPath filters out files that are outside the root path
+func (s SearchFiles) filterFilesByRootPath(files []string) ([]string, error) {
+	rootPath, err := filepath.Abs(s.RootPath)
+	if err != nil {
+		return nil, fmt.Errorf("error getting absolute path for rootPath %s: %w", s.RootPath, err)
+	}
+
+	rootPathWithSlash := ensureTrailingSlash(rootPath)
+	var filteredFiles []string
+
+	for _, file := range files {
+		filePath, err := filepath.Abs(file)
+		if err != nil {
+			continue // Skip files with invalid paths
+		}
+
+		filePathWithDir := ensureTrailingSlash(filepath.Dir(filePath))
+
+		if strings.HasPrefix(filePathWithDir, rootPathWithSlash) || strings.HasPrefix(filePath, rootPath) {
+			filteredFiles = append(filteredFiles, file)
+		}
+	}
+
+	return filteredFiles, nil
 }
 
 // getFilesToSearch returns a list of files to search based on directory and specific files/globs
@@ -270,4 +328,12 @@ func (s SearchFiles) searchInFile(filePath, queryLower string, resultsChan chan<
 
 		lineNumber++
 	}
+}
+
+// ensureTrailingSlash makes sure a path ends with a slash for proper prefix checking
+func ensureTrailingSlash(path string) string {
+	if !strings.HasSuffix(path, string(os.PathSeparator)) {
+		return path + string(os.PathSeparator)
+	}
+	return path
 }

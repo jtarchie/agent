@@ -273,6 +273,66 @@ func TestSearchFilesMetadata(t *testing.T) {
 	assert.Expect(response.Duration).NotTo(BeEmpty())
 }
 
+func TestSearchFilesWithRootPathSecurity(t *testing.T) {
+	assert := NewGomegaWithT(t)
+
+	// Create a temporary directory as root
+	tmpDir, err := os.MkdirTemp("", "rootdir")
+	assert.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create a file inside the root directory
+	testFile := filepath.Join(tmpDir, "testfile.txt")
+	err = os.WriteFile(testFile, []byte("This is a test file with content"), 0644)
+	assert.Expect(err).NotTo(HaveOccurred())
+
+	// Test searching within root path - should succeed
+	searcher := tools.SearchFiles{
+		Query:     "test",
+		Directory: tmpDir,
+		RootPath:  tmpDir,
+	}
+
+	result, err := searcher.Call(context.Background())
+	assert.Expect(err).NotTo(HaveOccurred())
+
+	response, ok := result.(tools.SearchResponse)
+	assert.Expect(ok).To(BeTrue())
+	assert.Expect(response.TotalFiles).To(Equal(1))
+	assert.Expect(response.FilesMatched).To(Equal(1))
+
+	// Test searching outside root path - should fail
+	searcher = tools.SearchFiles{
+		Query:     "test",
+		Directory: "/tmp",
+		RootPath:  tmpDir,
+	}
+
+	_, err = searcher.Call(context.Background())
+	assert.Expect(err).To(HaveOccurred())
+	assert.Expect(err.Error()).To(ContainSubstring("security error"))
+}
+
+func TestSearchFilesPathTraversalAttack(t *testing.T) {
+	assert := NewGomegaWithT(t)
+
+	// Create a temporary directory as root
+	tmpDir, err := os.MkdirTemp("", "rootdir")
+	assert.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Try to search outside using path traversal
+	searcher := tools.SearchFiles{
+		Query:     "test",
+		Directory: filepath.Join(tmpDir, "../../../etc"),
+		RootPath:  tmpDir,
+	}
+
+	_, err = searcher.Call(context.Background())
+	assert.Expect(err).To(HaveOccurred())
+	assert.Expect(err.Error()).To(ContainSubstring("security error"))
+}
+
 func TestSearchFilesWithSpecificFilesAndGlobs(t *testing.T) {
 	assert := NewGomegaWithT(t)
 
@@ -476,4 +536,49 @@ func TestSearchFilesWithSpecificFilesAndGlobs(t *testing.T) {
 		assert.Expect(foundExtensions[".go"]).To(BeTrue())
 		assert.Expect(foundExtensions[".json"]).To(BeFalse())
 	})
+}
+
+func TestSearchFilesWithRootPathFileFiltering(t *testing.T) {
+	assert := NewGomegaWithT(t)
+
+	// Create a temporary directory as root
+	tmpDir, err := os.MkdirTemp("", "rootdir")
+	assert.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Create an outside directory
+	outsideDir, err := os.MkdirTemp("", "outsidedir")
+	assert.Expect(err).NotTo(HaveOccurred())
+	defer func() { _ = os.RemoveAll(outsideDir) }()
+
+	// Create files inside root directory
+	insideFile := filepath.Join(tmpDir, "inside.txt")
+	err = os.WriteFile(insideFile, []byte("content inside root"), 0644)
+	assert.Expect(err).NotTo(HaveOccurred())
+
+	// Create file outside root directory
+	outsideFile := filepath.Join(outsideDir, "outside.txt")
+	err = os.WriteFile(outsideFile, []byte("content outside root"), 0644)
+	assert.Expect(err).NotTo(HaveOccurred())
+
+	// Test with specific files that include outside file - should filter it out
+	searcher := tools.SearchFiles{
+		Query:     "content",
+		Directory: tmpDir,
+		Files:     []string{insideFile, outsideFile},
+		RootPath:  tmpDir,
+	}
+
+	result, err := searcher.Call(context.Background())
+	assert.Expect(err).NotTo(HaveOccurred())
+
+	response, ok := result.(tools.SearchResponse)
+	assert.Expect(ok).To(BeTrue())
+	assert.Expect(response.TotalFiles).To(Equal(1)) // Only the inside file should be processed
+	assert.Expect(response.FilesMatched).To(Equal(1))
+	assert.Expect(len(response.Results)).To(Equal(1))
+
+	// Verify only the inside file was found
+	assert.Expect(response.Results[0].FilePath).To(Equal(insideFile))
+	assert.Expect(response.Results[0].LineContent).To(ContainSubstring("inside"))
 }
