@@ -392,12 +392,13 @@ func runExecutionPhase(cli *CLI, plan string, pwd string, fileInfos []map[string
 	// Execute template for execution agent
 	var executePromptBuf strings.Builder
 	err = executeTmpl.Execute(&executePromptBuf, map[string]interface{}{
-		"Plan":         plan,
-		"Files":        fileInfos,
-		"Tools":        toolsToInclude,
-		"CustomPrompt": string(customPrompt),
-		"BatchMode":    isBatchSingleFile,
-		"CurrentFile":  currentFile,
+		"Plan":             plan,
+		"Files":            fileInfos,
+		"Tools":            toolsToInclude,
+		"CustomPrompt":     string(customPrompt),
+		"BatchMode":        isBatchSingleFile,
+		"CurrentFile":      currentFile,
+		"WorkingDirectory": pwd,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute execute prompt template: %w", err)
