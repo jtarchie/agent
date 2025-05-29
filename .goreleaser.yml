@@ -1,10 +1,10 @@
 version: 2
-project_name: builder
+project_name: agent
 
 release:
   github:
     owner: jtarchie
-    name: builder
+    name: agent
 
 builds:
 - env:
@@ -49,11 +49,11 @@ archives:
       - LICENSE.md
 
 brews:
-- name: builder
+- name: agent
   test: |
-    system "#{bin}/builder --help"
+    system "#{bin}/agent --help"
   install:
-    bin.install "builder"
+    bin.install "agent"
 checksum:
   name_template: 'checksums.txt'
 changelog:
