@@ -3,6 +3,15 @@
 Agent is an AI-assisted development workflow tool that helps automate software
 engineering tasks by breaking them down into planning and execution phases.
 
+## Install
+
+We distribute Linux and Mac [homebrew](https://brew.sh) support.
+
+```bash
+brew tap jtarchie/agent https://github.com/jtarchie/agent
+brew install agent
+```
+
 ## Overview
 
 This project provides a command-line interface that leverages large language
