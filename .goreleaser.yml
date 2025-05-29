@@ -9,7 +9,7 @@ release:
 builds:
 - env:
     - CGO_ENABLED=0
-  main: ./cmd/main.go
+  main: ./agent/main.go
   goos:
     - linux
     - darwin
