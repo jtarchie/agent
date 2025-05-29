@@ -10,6 +10,13 @@ We distribute Linux and Mac [homebrew](https://brew.sh) support.
 ```bash
 brew tap jtarchie/agent https://github.com/jtarchie/agent
 brew install agent
+brew install ollama
+
+ollama start
+# in a new terminal tab
+ollama pull phi4-reasoning # https://ollama.com/library/phi4-reasoning
+ollama pull qwen3 # https://ollama.com/library/qwen3
+agent -h
 ```
 
 ## Overview
