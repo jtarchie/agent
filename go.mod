@@ -8,7 +8,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/go-enry/go-enry/v2 v2.9.2
 	github.com/iancoleman/strcase v0.3.0
-	github.com/jtarchie/outrageous v0.0.0-20250529021646-0a679d4de2c2
+	github.com/jtarchie/outrageous v0.0.0-20250531161319-35523abb4e3d
 	github.com/onsi/gomega v1.37.0
 	github.com/samber/lo v1.50.0
 )
@@ -23,9 +23,9 @@ require (
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/sashabaranov/go-openai v1.40.0 // indirect
+	github.com/sashabaranov/go-openai v1.40.1 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
-	github.com/spf13/cast v1.8.0 // indirect
+	github.com/spf13/cast v1.9.2 // indirect
 	github.com/tiendc/go-deepcopy v1.6.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
