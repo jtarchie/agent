@@ -45,18 +45,18 @@ func setupLogging() {
 // CLI defines the command-line interface structure
 type CLI struct {
 	Patterns []string `arg:"" optional:"" help:"List of file patterns (globs) or filenames to process. Supports doublestar (**) patterns. If empty, works from current directory."`
-	Message  string   `help:"Message to send to the planning agent." required:""`
-	Batch    bool     `help:"Enable batch mode for the executing agent." default:"false"`
+	Message  string   `help:"Message to send to the planning agent." required:"" env:"AGENT_MESSAGE"`
+	Batch    bool     `help:"Enable batch mode for the executing agent." default:"false" env:"AGENT_BATCH"`
 
-	Tools []string `help:"List of tools to allow the executing agent to use. Default is all." optional:""`
+	Tools []string `help:"List of tools to allow the executing agent to use. Default is all." optional:"" env:"AGENT_TOOLS"`
 
-	PlanningApiToken    string `help:"API token for OpenAI compatible endpoint"`
-	PlanningApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1"`
-	PlanningModel       string `help:"Model to use for the planning agent." default:"phi4-reasoning:latest"`
+	PlanningApiToken    string `help:"API token for OpenAI compatible endpoint" env:"AGENT_PLANNING_API_TOKEN"`
+	PlanningApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1" env:"AGENT_PLANNING_API_ENDPOINT"`
+	PlanningModel       string `help:"Model to use for the planning agent." default:"phi4-reasoning:latest" env:"AGENT_PLANNING_MODEL"`
 
-	ExecutingApiToken    string `help:"API token for OpenAI compatible endpoint"`
-	ExecutingApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1"`
-	ExecutingModel       string `help:"Model to use for the executing agent." default:"qwen3:32b"`
+	ExecutingApiToken    string `help:"API token for OpenAI compatible endpoint" env:"AGENT_EXECUTING_API_TOKEN"`
+	ExecutingApiEndpoint string `help:"API endpoint for OpenAI compatible endpoint" default:"http://localhost:11434/v1" env:"AGENT_EXECUTING_API_ENDPOINT"`
+	ExecutingModel       string `help:"Model to use for the executing agent." default:"qwen3:32b" env:"AGENT_EXECUTING_MODEL"`
 }
 
 // FileInfo represents information about a file in the codebase
