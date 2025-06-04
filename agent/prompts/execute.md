@@ -57,6 +57,9 @@ then proceed with a reasonable and justified approach.
   continue.**
 - You are allowed to call tools multiple times and in sequence. Don't stop
   early.
+- **If a tool returns an error, analyze the error and attempt to resolve it by
+  adjusting parameters or approach. You may iterate on tool usage 2-3 times to
+  resolve issues before moving on.**
 - When finished with all steps, do not invent new actions — wait for further
   input.
 - **All file operations must stay within the working directory bounds**

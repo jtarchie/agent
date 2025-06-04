@@ -5,26 +5,26 @@ name: Go
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: denoland/setup-deno@v1
-    - uses: actions/setup-go@v5
-      with:
-        go-version: 'stable'
-        check-latest: true
-        cache: true
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
-    - name: Install Task
-      uses: arduino/setup-task@v1
-      with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Task
-      run: task
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          check-latest: true
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+      - name: Install Task
+        uses: arduino/setup-task@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Task
+        run: task

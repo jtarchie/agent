@@ -23,9 +23,9 @@ func (r RunInTerminal) Call(ctx context.Context) (any, error) {
 		command = exec.CommandContext(ctx, r.Command[0], r.Command[1:]...)
 	}
 
-	output := &strings.Builder{}
-	command.Stdout = output
-	command.Stderr = output
+	stdout, stderr := &strings.Builder{}, &strings.Builder{}
+	command.Stdout = stdout
+	command.Stderr = stderr
 
 	err := command.Run()
 	if err != nil {
@@ -34,7 +34,8 @@ func (r RunInTerminal) Call(ctx context.Context) (any, error) {
 
 	return map[string]any{
 		"status":    "completed",
-		"output":    output.String(),
+		"stdout":    stdout.String(),
+		"stderr":    stderr.String(),
 		"exit_code": command.ProcessState.ExitCode(),
 	}, nil
 }

@@ -43,6 +43,8 @@ For each planning step:
   source files in a directory)
 - When no specific files are provided, include steps to explore the directory
   structure and identify relevant files
+- **Include guidance for handling tool errors or unexpected results, allowing
+  for iteration and adjustment of approach**
   </planningStrategy>
 
 {{if .BatchMode}}

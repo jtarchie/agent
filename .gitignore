@@ -25,5 +25,6 @@ go.work.sum
 .env
 .envrc
 
-.build/# Added by goreleaser init:
+.build/
+# Added by goreleaser init:
 dist/

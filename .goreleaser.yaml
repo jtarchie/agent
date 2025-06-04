@@ -62,4 +62,4 @@ brews:
     install:
       bin.install "agent"
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
