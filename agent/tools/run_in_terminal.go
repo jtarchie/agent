@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -28,7 +29,7 @@ func (r RunInTerminal) Call(ctx context.Context) (any, error) {
 	command.Stderr = stderr
 
 	err := command.Run()
-	if err != nil {
+	if err != nil && !errors.Is(err, &exec.ExitError{}) {
 		return nil, fmt.Errorf("error running command: %w", err)
 	}
 

@@ -31,6 +31,7 @@ func Select(rootPath string, requestedTools []string) []agent.Tool {
 				RootPath: rootPath,
 			},
 		),
+		MustScript(),
 	}
 
 	// If no specific tools requested, include all available tools
